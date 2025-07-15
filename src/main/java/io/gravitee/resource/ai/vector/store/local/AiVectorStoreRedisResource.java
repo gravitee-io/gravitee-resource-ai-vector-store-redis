@@ -70,11 +70,10 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private static final Pattern PARAMETERS_PATTERN = Pattern.compile("\\$(?!vector\\b|max_results\\b)(\\w+)");
-  public static final String INFINITY_VALUE = "inf";
 
   private AiVectorStoreProperties properties;
-  private JedisPooled client;
   private RedisConfiguration redisConfig;
+  private JedisPooled client;
 
   @Override
   public void doStart() throws Exception {
@@ -82,45 +81,55 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
 
     properties = super.configuration().properties();
     redisConfig = super.configuration().redisConfig();
-
-    URI uri = new URI(redisConfig.url());
-    if (nullOrEmpty(redisConfig.username()) || nullOrEmpty(redisConfig.password())) {
-      client = new JedisPooled(uri);
-    } else {
-      client = new JedisPooled(getUsernameAndPasswordUri(uri));
-    }
+    client = buildClient();
 
     if (!properties.readOnly()) {
-      Map<String, Object> vectorAttrs = new HashMap<>();
-      vectorAttrs.put(VECTOR_TYPE_PROP_KEY, VECTOR_TYPE_FLOAT32);
-      vectorAttrs.put(DIM_TYPE_PROP_KEY, properties.embeddingSize());
-      vectorAttrs.put(DISTANCE_METRIC_PROP_KEY, getDistanceMetric().name());
-      vectorAttrs.put(INITIAL_CAP_PROP_KEY, redisConfig.vectorStoreConfig().initialCapacity());
+      if (indexDoNotExist()) {
+        Map<String, Object> vectorAttrs = new HashMap<>();
+        vectorAttrs.put(VECTOR_TYPE_PROP_KEY, VECTOR_TYPE_FLOAT32);
+        vectorAttrs.put(DIM_TYPE_PROP_KEY, properties.embeddingSize());
+        vectorAttrs.put(DISTANCE_METRIC_PROP_KEY, getDistanceMetric().name());
+        vectorAttrs.put(INITIAL_CAP_PROP_KEY, redisConfig.vectorStoreConfig().initialCapacity());
 
-      if (!HNSW.equals(properties.indexType())) {
-        vectorAttrs.put(BLOCK_SIZE_PROP_KEY, redisConfig.vectorStoreConfig().blockSize());
+        if (!HNSW.equals(properties.indexType())) {
+          vectorAttrs.put(BLOCK_SIZE_PROP_KEY, redisConfig.vectorStoreConfig().blockSize());
+        }
+
+        SchemaField[] schema = new SchemaField[] {
+          TagField.of("$." + RETRIEVAL_CONTEXT_KEY_ATTR).as(RETRIEVAL_CONTEXT_KEY_ATTR),
+          VectorField
+            .builder()
+            .fieldName("$." + VECTOR_ATTR)
+            .algorithm(getVectorAlgorithm())
+            .attributes(vectorAttrs)
+            .as(VECTOR_ATTR)
+            .build(),
+        };
+
+        var finalPrefix = getFinalPrefixName();
+        client.ftCreate(
+          redisConfig.index(),
+          FTCreateParams.createParams().on(IndexDataType.JSON).addPrefix(finalPrefix),
+          schema
+        );
+      } else {
+        log.debug("[{}] index already exists", redisConfig.index());
       }
-
-      SchemaField[] schema = new SchemaField[] {
-        TagField.of("$." + RETRIEVAL_CONTEXT_KEY_ATTR).as(RETRIEVAL_CONTEXT_KEY_ATTR),
-        VectorField
-          .builder()
-          .fieldName("$." + VECTOR_ATTR)
-          .algorithm(getVectorAlgorithm())
-          .attributes(vectorAttrs)
-          .as(VECTOR_ATTR)
-          .build(),
-      };
-
-      var finalPrefix = getFinalPrefixName();
-      client.ftCreate(
-        redisConfig.index(),
-        FTCreateParams.createParams().on(IndexDataType.JSON).addPrefix(finalPrefix),
-        schema
-      );
     } else {
       log.debug("AilVectorStoreRedisResource is read-only");
     }
+  }
+
+  private boolean indexDoNotExist() {
+    return !client.ftList().contains(redisConfig.index());
+  }
+
+  private JedisPooled buildClient() throws URISyntaxException {
+    URI uri = new URI(redisConfig.url());
+    if (nullOrEmpty(redisConfig.username()) || nullOrEmpty(redisConfig.password())) {
+      return new JedisPooled(uri);
+    }
+    return new JedisPooled(getUsernameAndPasswordUri(uri));
   }
 
   private boolean nullOrEmpty(String value) {
