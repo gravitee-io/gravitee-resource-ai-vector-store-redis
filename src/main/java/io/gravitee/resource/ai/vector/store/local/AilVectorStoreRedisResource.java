@@ -174,8 +174,8 @@ public class AilVectorStoreRedisResource extends AiVectorStoreResource<AiVectorS
       if (properties.allowEviction()) {
         TimeUnit timeUnit = properties.evictTimeUnit();
         long duration = properties.evictTime();
-        long evictionTimeMs = timeUnit.toSeconds(duration);
-        client.expireAt(id, (vectorEntity.timestamp() / 1000) + evictionTimeMs);
+        long evictionTime = timeUnit.toSeconds(duration);
+        client.expireAt(id, (vectorEntity.timestamp() / 1000) + evictionTime);
       }
     } else {
       log.debug("AiVectorStoreRedisResource.add is read-only");
