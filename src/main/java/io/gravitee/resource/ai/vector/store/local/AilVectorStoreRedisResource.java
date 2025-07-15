@@ -16,7 +16,6 @@
 package io.gravitee.resource.ai.vector.store.local;
 
 import static io.gravitee.resource.ai.vector.store.api.IndexType.HNSW;
-import static io.gravitee.resource.ai.vector.store.api.Similarity.DOT;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static java.util.Comparator.comparingDouble;
 
@@ -31,7 +30,6 @@ import io.reactivex.rxjava3.core.Single;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -56,7 +54,6 @@ public class AilVectorStoreRedisResource extends AiVectorStoreResource<AiVectorS
 
   private static final String VECTOR_PARAM = "vector";
   private static final String MAX_RESULTS_PARAM = "max_results";
-  private static final List<String> RESERVED_PARAM_KEYWORDS = List.of(VECTOR_PARAM, MAX_RESULTS_PARAM);
 
   private static final String VECTOR_TYPE_PROP_KEY = "TYPE";
   private static final String DIM_TYPE_PROP_KEY = "DIM";
@@ -74,7 +71,6 @@ public class AilVectorStoreRedisResource extends AiVectorStoreResource<AiVectorS
 
   private static final Pattern PARAMETERS_PATTERN = Pattern.compile("\\$(?!vector\\b|max_results\\b)(\\w+)");
   public static final String INFINITY_VALUE = "inf";
-  public static final String MINUS_INFINITY_VALUE = "-inf";
 
   private AiVectorStoreProperties properties;
   private JedisPooled client;
@@ -206,7 +202,7 @@ public class AilVectorStoreRedisResource extends AiVectorStoreResource<AiVectorS
   private float normalizeSore(Document document) {
     String stringScore = document.getString(redisConfig.scoreField());
     return switch (this.properties.similarity()) {
-      case EUCLIDEAN -> INFINITY_VALUE.equals(stringScore) ? 0.0f : 2 / (2 + Float.parseFloat(stringScore));
+      case EUCLIDEAN -> 2 / (2 + Float.parseFloat(stringScore));
       case COSINE, DOT -> (2 - Float.parseFloat(stringScore)) / 2;
     };
   }
