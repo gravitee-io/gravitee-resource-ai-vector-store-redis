@@ -1,0 +1,1 @@
+# gravitee-resource-ai-vector-store-redis
