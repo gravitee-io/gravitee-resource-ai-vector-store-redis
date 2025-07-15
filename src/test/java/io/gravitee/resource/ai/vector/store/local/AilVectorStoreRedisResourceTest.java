@@ -96,7 +96,7 @@ class AilVectorStoreRedisResourceTest {
   @MethodSource("params_that_must_must_add_and_retrieve_vectors")
   void must_add_and_retrieve_vectors(AiVectorStoreRedisConfiguration config, float[] v1, float[] v2, float score)
     throws Exception {
-    AilVectorStoreRedisResource resource = new AilVectorStoreRedisResource();
+    AiVectorStoreRedisResource resource = new AiVectorStoreRedisResource();
     injectConfiguration(resource, config);
     resource.doStart();
 
@@ -256,7 +256,7 @@ class AilVectorStoreRedisResourceTest {
   @MethodSource("params_that_must_add_and_retrieve_vectors_and_expire")
   void must_add_and_retrieve_vectors_and_expire(AiVectorStoreRedisConfiguration config, float[] v1, float[] v2, float score)
     throws Exception {
-    AilVectorStoreRedisResource resource = new AilVectorStoreRedisResource();
+    AiVectorStoreRedisResource resource = new AiVectorStoreRedisResource();
     injectConfiguration(resource, config);
     resource.doStart();
 
@@ -421,7 +421,7 @@ class AilVectorStoreRedisResourceTest {
     );
   }
 
-  private void injectConfiguration(AilVectorStoreRedisResource resource, AiVectorStoreRedisConfiguration config)
+  private void injectConfiguration(AiVectorStoreRedisResource resource, AiVectorStoreRedisConfiguration config)
     throws Exception {
     Field field = resource.getClass().getSuperclass().getSuperclass().getDeclaredField("configuration");
     field.setAccessible(true);

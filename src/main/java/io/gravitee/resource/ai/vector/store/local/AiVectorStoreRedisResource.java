@@ -50,7 +50,7 @@ import redis.clients.jedis.search.schemafields.VectorField;
  */
 
 @Slf4j
-public class AilVectorStoreRedisResource extends AiVectorStoreResource<AiVectorStoreRedisConfiguration> {
+public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorStoreRedisConfiguration> {
 
   private static final String VECTOR_PARAM = "vector";
   private static final String MAX_RESULTS_PARAM = "max_results";
