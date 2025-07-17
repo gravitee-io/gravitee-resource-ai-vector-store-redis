@@ -41,8 +41,14 @@
           "default": "0.7"
         },
         "indexType": {
-          "const": "FLAT",
-          "description": "Index type used for vector search. Currently only FLAT indexing is supported."
+          "type": "string",
+          "title": "Index type",
+          "enum": [
+            "FLAT",
+            "HNSW"
+          ],
+          "description": "Index type used for vector search.",
+          "default": "HNSW"
         },
         "readOnly": {
           "type": "boolean",
@@ -114,6 +120,7 @@
           "type": "string",
           "title": "Redis URL",
           "description": "Full Redis connection URI (e.g., redis://localhost:6379 or rediss://host:port for SSL).",
+          "default": "redis://localhost:6379",
           "format": "uri"
         },
         "username": {
@@ -124,7 +131,7 @@
         "password": {
           "type": "string",
           "title": "Password",
-          "description": "Password for authenticating with the Redis server.",
+          "description": "Optional Password for authenticating with the Redis server.",
           "format": "password"
         },
         "index": {
@@ -141,7 +148,7 @@
           "type": "string",
           "title": "Query Template",
           "description": "Redis search query template used to fetch KNN results, optionally with filtering. Supports placeholders like $vector, $max_results, $retrieval_context_key and $similarity_score",
-          "default": "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS $similarity_score\n]",
+          "default": "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
           "format": "gio-code-editor"
         },
         "scoreField": {

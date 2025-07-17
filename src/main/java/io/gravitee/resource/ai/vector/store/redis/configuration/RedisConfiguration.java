@@ -13,14 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.gravitee.resource.ai.vector.store.local.configuration;
-
-import io.gravitee.resource.ai.vector.store.api.AiVectorStoreProperties;
-import io.gravitee.resource.api.ResourceConfiguration;
+package io.gravitee.resource.ai.vector.store.redis.configuration;
 
 /**
  * @author Rémi SULTAN (remi.sultan at graviteesource.com)
  * @author GraviteeSource Team
  */
-public record AiVectorStoreRedisConfiguration(AiVectorStoreProperties properties, RedisConfiguration redisConfig)
-  implements ResourceConfiguration {}
+public record RedisConfiguration(
+  String url,
+  String username,
+  String password,
+  String index,
+  String prefix,
+  String query,
+  String scoreField,
+  RedisVectorStoreConfiguration vectorStoreConfig
+) {}

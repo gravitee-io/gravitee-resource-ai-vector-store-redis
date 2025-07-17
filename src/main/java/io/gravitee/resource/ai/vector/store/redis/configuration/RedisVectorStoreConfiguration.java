@@ -13,14 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.gravitee.resource.ai.vector.store.local.configuration;
+package io.gravitee.resource.ai.vector.store.redis.configuration;
 
 /**
  * @author Rémi SULTAN (remi.sultan at graviteesource.com)
  * @author GraviteeSource Team
  */
-public enum DistanceMetric {
-  COSINE,
-  L2,
-  IP,
-}
+public record RedisVectorStoreConfiguration(int initialCapacity, int blockSize) {}

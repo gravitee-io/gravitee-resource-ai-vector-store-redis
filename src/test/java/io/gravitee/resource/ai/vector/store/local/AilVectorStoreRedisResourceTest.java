@@ -24,6 +24,10 @@ import io.gravitee.resource.ai.vector.store.api.AiVectorStoreProperties;
 import io.gravitee.resource.ai.vector.store.api.VectorEntity;
 import io.gravitee.resource.ai.vector.store.api.VectorResult;
 import io.gravitee.resource.ai.vector.store.local.configuration.*;
+import io.gravitee.resource.ai.vector.store.redis.AiVectorStoreRedisResource;
+import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRedisConfiguration;
+import io.gravitee.resource.ai.vector.store.redis.configuration.RedisConfiguration;
+import io.gravitee.resource.ai.vector.store.redis.configuration.RedisVectorStoreConfiguration;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.subscribers.TestSubscriber;
 import java.lang.reflect.Field;
@@ -40,7 +44,9 @@ import org.testcontainers.utility.DockerImageName;
 
 class AilVectorStoreRedisResourceTest {
 
-  static final GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis/redis-stack-server:7.2.0-v9"))
+  static final GenericContainer<?> redis = new GenericContainer<>(
+    DockerImageName.parse("redis/redis-stack-server:7.2.0-v18")
+  )
     .withExposedPorts(6379);
 
   public static float[] vector1 = new float[] {

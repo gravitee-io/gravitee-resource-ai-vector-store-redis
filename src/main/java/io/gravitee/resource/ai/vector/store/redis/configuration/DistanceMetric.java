@@ -13,21 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.gravitee.resource.ai.vector.store.local.configuration;
-
-import java.util.List;
+package io.gravitee.resource.ai.vector.store.redis.configuration;
 
 /**
  * @author Rémi SULTAN (remi.sultan at graviteesource.com)
  * @author GraviteeSource Team
  */
-public record RedisConfiguration(
-  String url,
-  String username,
-  String password,
-  String index,
-  String prefix,
-  String query,
-  String scoreField,
-  RedisVectorStoreConfiguration vectorStoreConfig
-) {}
+public enum DistanceMetric {
+  COSINE,
+  L2,
+  IP,
+}

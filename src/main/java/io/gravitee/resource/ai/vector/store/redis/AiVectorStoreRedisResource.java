@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.gravitee.resource.ai.vector.store.local;
+package io.gravitee.resource.ai.vector.store.redis;
 
 import static io.gravitee.resource.ai.vector.store.api.IndexType.HNSW;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
@@ -22,10 +22,11 @@ import static java.util.Comparator.comparingDouble;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.gravitee.resource.ai.vector.store.api.*;
-import io.gravitee.resource.ai.vector.store.local.configuration.AiVectorStoreRedisConfiguration;
-import io.gravitee.resource.ai.vector.store.local.configuration.DistanceMetric;
-import io.gravitee.resource.ai.vector.store.local.configuration.RedisConfiguration;
+import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRedisConfiguration;
+import io.gravitee.resource.ai.vector.store.redis.configuration.DistanceMetric;
+import io.gravitee.resource.ai.vector.store.redis.configuration.RedisConfiguration;
 import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.core.Single;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -70,6 +71,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private static final Pattern PARAMETERS_PATTERN = Pattern.compile("\\$(?!vector\\b|max_results\\b)(\\w+)");
+  public static final String OK_REDIS_RESPONSE = "OK";
 
   private AiVectorStoreProperties properties;
   private RedisConfiguration redisConfig;
@@ -107,11 +109,15 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
         };
 
         var finalPrefix = getFinalPrefixName();
-        client.ftCreate(
+        String response = client.ftCreate(
           redisConfig.index(),
           FTCreateParams.createParams().on(IndexDataType.JSON).addPrefix(finalPrefix),
           schema
         );
+
+        if (!OK_REDIS_RESPONSE.equals(response)) {
+          log.error("Failed to create redis vector store index [{}] --> {}", redisConfig.index(), response);
+        }
       } else {
         log.debug("[{}] index already exists", redisConfig.index());
       }
@@ -159,9 +165,6 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   @Override
   public void doStop() throws Exception {
     super.doStop();
-    if (!properties.readOnly() && properties.allowEviction()) {
-      client.ftDropIndexDD(redisConfig.index());
-    }
     client.close();
   }
 
@@ -189,10 +192,14 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
 
   @Override
   public Flowable<VectorResult> findRelevant(VectorEntity vectorEntity) {
-    return Single
+    return Maybe
       .fromCallable(() -> toByteArray(vectorEntity.vector()))
       .map(byteVector -> getQuery(vectorEntity, byteVector))
       .map(query -> client.ftSearch(redisConfig.index(), query))
+      .onErrorResumeNext(e -> {
+        log.error(e.toString(), e);
+        return Maybe.empty();
+      })
       .toFlowable()
       .flatMap(searchResult -> Flowable.fromIterable(searchResult.getDocuments()))
       .map(document -> {
