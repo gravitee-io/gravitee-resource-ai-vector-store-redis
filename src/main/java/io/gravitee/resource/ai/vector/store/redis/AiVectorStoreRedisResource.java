@@ -16,8 +16,10 @@
 package io.gravitee.resource.ai.vector.store.redis;
 
 import static io.gravitee.resource.ai.vector.store.api.IndexType.HNSW;
+import static io.vertx.redis.client.ResponseType.MULTI;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static java.util.Comparator.comparingDouble;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,25 +27,24 @@ import io.gravitee.resource.ai.vector.store.api.*;
 import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRedisConfiguration;
 import io.gravitee.resource.ai.vector.store.redis.configuration.DistanceMetric;
 import io.gravitee.resource.ai.vector.store.redis.configuration.RedisConfiguration;
+import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Maybe;
-import io.reactivex.rxjava3.core.Single;
+import io.reactivex.rxjava3.schedulers.Schedulers;
+import io.vertx.core.json.Json;
+import io.vertx.redis.client.RedisOptions;
+import io.vertx.rxjava3.core.Vertx;
+import io.vertx.rxjava3.redis.client.Command;
+import io.vertx.rxjava3.redis.client.Redis;
+import io.vertx.rxjava3.redis.client.Request;
+import io.vertx.rxjava3.redis.client.Response;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
-import redis.clients.jedis.JedisPooled;
-import redis.clients.jedis.json.Path2;
-import redis.clients.jedis.search.Document;
-import redis.clients.jedis.search.FTCreateParams;
-import redis.clients.jedis.search.IndexDataType;
-import redis.clients.jedis.search.Query;
-import redis.clients.jedis.search.schemafields.SchemaField;
-import redis.clients.jedis.search.schemafields.TagField;
-import redis.clients.jedis.search.schemafields.VectorField;
 
 /**
  * @author Rémi SULTAN (remi.sultan at graviteesource.com)
@@ -62,6 +63,12 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   private static final String INITIAL_CAP_PROP_KEY = "INITIAL_CAP";
   private static final String BLOCK_SIZE_PROP_KEY = "BLOCK_SIZE";
   private static final String VECTOR_TYPE_FLOAT32 = "FLOAT32";
+  private static final String M_PROP_KEY = "M";
+  private static final String EF_CONSTRUCTION_PROP_KEY = "EF_CONSTRUCTION";
+  private static final String EF_RUNTIME_PROP_KEY = "EF_RUNTIME";
+  private static final String EPSILON_PROP_KEY = "EPSILON";
+  private static final int HNSW_NB_PARAM = 16;
+  private static final int FLAT_NB_PARAMS = 10;
 
   private static final String VECTOR_ATTR = "vector";
   private static final String TEXT_ATTR = "text";
@@ -71,186 +78,157 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
   private static final Pattern PARAMETERS_PATTERN = Pattern.compile("\\$(?!vector\\b|max_results\\b)(\\w+)");
-  public static final String OK_REDIS_RESPONSE = "OK";
+
+  private static final String OK_REDIS_RESPONSE = "OK";
+  private static final String AS = "AS";
+  private static final String VECTOR_TYPE = "VECTOR";
+  private static final String SCHEMA = "SCHEMA";
+  private static final String PREFIX = "PREFIX";
+  private static final int ONE_PREFIX = 1;
+  private static final String JSON_ROOT = "$.";
+  private static final String TAG = "TAG";
+  private static final String ON = "ON";
+  private static final String JSON = "JSON";
+  private static final String FT_SEARCH_NB_PARAMS_PROP_KEY = "PARAMS";
+  private static final String DIALECT_KEY = "DIALECT";
+  private static final String SORTBY_KET = "SORTBY";
+  private static final String SORT_DIRECTION = "DESC";
+
+  private static final String REDIS_RESULT_ATTR = "results";
+  private static final String EXTRA_ATTRIBUTES_ATTR = "extra_attributes";
+  private static final String ID_ATTR = "id";
 
   private AiVectorStoreProperties properties;
   private RedisConfiguration redisConfig;
-  private JedisPooled client;
+
+  private Redis redisClient;
+  private Vertx vertx;
 
   @Override
   public void doStart() throws Exception {
     super.doStart();
+    vertx = getBean(Vertx.class);
 
     properties = super.configuration().properties();
     redisConfig = super.configuration().redisConfig();
-    client = buildClient();
+    redisClient = buildClient();
 
-    if (!properties.readOnly()) {
-      if (indexDoNotExist()) {
-        Map<String, Object> vectorAttrs = new HashMap<>();
-        vectorAttrs.put(VECTOR_TYPE_PROP_KEY, VECTOR_TYPE_FLOAT32);
-        vectorAttrs.put(DIM_TYPE_PROP_KEY, properties.embeddingSize());
-        vectorAttrs.put(DISTANCE_METRIC_PROP_KEY, getDistanceMetric().name());
-        vectorAttrs.put(INITIAL_CAP_PROP_KEY, redisConfig.vectorStoreConfig().initialCapacity());
-
-        if (!HNSW.equals(properties.indexType())) {
-          vectorAttrs.put(BLOCK_SIZE_PROP_KEY, redisConfig.vectorStoreConfig().blockSize());
-        }
-
-        SchemaField[] schema = new SchemaField[] {
-          TagField.of("$." + RETRIEVAL_CONTEXT_KEY_ATTR).as(RETRIEVAL_CONTEXT_KEY_ATTR),
-          VectorField
-            .builder()
-            .fieldName("$." + VECTOR_ATTR)
-            .algorithm(getVectorAlgorithm())
-            .attributes(vectorAttrs)
-            .as(VECTOR_ATTR)
-            .build(),
-        };
-
-        var finalPrefix = getFinalPrefixName();
-        String response = client.ftCreate(
-          redisConfig.index(),
-          FTCreateParams.createParams().on(IndexDataType.JSON).addPrefix(finalPrefix),
-          schema
-        );
-
-        if (!OK_REDIS_RESPONSE.equals(response)) {
-          log.error("Failed to create redis vector store index [{}] --> {}", redisConfig.index(), response);
-        }
-      } else {
-        log.debug("[{}] index already exists", redisConfig.index());
-      }
-    } else {
+    if (properties.readOnly()) {
       log.debug("AilVectorStoreRedisResource is read-only");
-    }
-  }
-
-  private boolean indexDoNotExist() {
-    return !client.ftList().contains(redisConfig.index());
-  }
-
-  private JedisPooled buildClient() throws URISyntaxException {
-    URI uri = new URI(redisConfig.url());
-    if (nullOrEmpty(redisConfig.username()) || nullOrEmpty(redisConfig.password())) {
-      return new JedisPooled(uri);
-    }
-    return new JedisPooled(getUsernameAndPasswordUri(uri));
-  }
-
-  private boolean nullOrEmpty(String value) {
-    return value == null || value.isBlank();
-  }
-
-  private String getFinalPrefixName() {
-    return redisConfig.prefix() + ":";
-  }
-
-  private VectorField.VectorAlgorithm getVectorAlgorithm() {
-    return switch (properties.indexType()) {
-      case FLAT -> VectorField.VectorAlgorithm.FLAT;
-      case HNSW -> VectorField.VectorAlgorithm.HNSW;
-      case IVF -> throw new IllegalArgumentException("IVF not supported");
-    };
-  }
-
-  private DistanceMetric getDistanceMetric() {
-    return switch (properties.similarity()) {
-      case EUCLIDEAN -> DistanceMetric.L2;
-      case COSINE -> DistanceMetric.COSINE;
-      case DOT -> DistanceMetric.IP;
-    };
-  }
-
-  @Override
-  public void doStop() throws Exception {
-    super.doStop();
-    client.close();
-  }
-
-  @Override
-  public void add(VectorEntity vectorEntity) {
-    if (!properties.readOnly()) {
-      Map<String, Object> doc = new HashMap<>();
-      doc.put(VECTOR_ATTR, vectorEntity.vector());
-      doc.put(TEXT_ATTR, vectorEntity.text());
-      doc.putAll(vectorEntity.metadata());
-
-      String id = getFinalPrefixName() + vectorEntity.id();
-      client.jsonSetWithEscape(id, Path2.ROOT_PATH, doc);
-
-      if (properties.allowEviction()) {
-        TimeUnit timeUnit = properties.evictTimeUnit();
-        long duration = properties.evictTime();
-        long evictionTime = timeUnit.toSeconds(duration);
-        client.expireAt(id, (vectorEntity.timestamp() / 1000) + evictionTime);
-      }
     } else {
-      log.debug("AiVectorStoreRedisResource.add is read-only");
+      createIndex();
     }
   }
 
-  @Override
-  public Flowable<VectorResult> findRelevant(VectorEntity vectorEntity) {
-    return Maybe
-      .fromCallable(() -> toByteArray(vectorEntity.vector()))
-      .map(byteVector -> getQuery(vectorEntity, byteVector))
-      .map(query -> client.ftSearch(redisConfig.index(), query))
-      .onErrorResumeNext(e -> {
-        log.error(e.toString(), e);
-        return Maybe.empty();
-      })
-      .toFlowable()
-      .flatMap(searchResult -> Flowable.fromIterable(searchResult.getDocuments()))
-      .map(document -> {
-        var metadata = extractMetadata(document.getString("$"));
-        var text = metadata.get(TEXT_ATTR).toString();
-
-        metadata.remove(TEXT_ATTR);
-        metadata.remove(VECTOR_ATTR);
-
-        return new VectorResult(new VectorEntity(document.getId(), text, metadata), normalizeSore(document));
-      })
-      .sorted(comparingDouble(result -> -result.score()))
-      .filter(result -> result.score() >= properties.threshold());
+  private void createIndex() {
+    indexExists(redisConfig.index())
+      .switchIfEmpty(
+        Maybe.defer(() -> {
+          log.debug("Index [{}] already exists", redisConfig.index());
+          return Maybe.empty();
+        })
+      )
+      .map(this::createIndexRequest)
+      .flatMap(redisClient::rxSend)
+      .subscribe(
+        response -> {
+          var content = response.toString();
+          if (OK_REDIS_RESPONSE.equals(content)) {
+            log.debug("Redis client created");
+          } else {
+            log.error("Could not create redis client: {}", content);
+          }
+        },
+        e -> log.error("Error creating redis client", e)
+      );
   }
 
-  private float normalizeSore(Document document) {
-    String stringScore = document.getString(redisConfig.scoreField());
-    return switch (this.properties.similarity()) {
-      case EUCLIDEAN -> 2 / (2 + Float.parseFloat(stringScore));
-      case COSINE, DOT -> (2 - Float.parseFloat(stringScore)) / 2;
-    };
-  }
+  private Request createIndexRequest(String index) {
+    var storeConfig = redisConfig.vectorStoreConfig();
 
-  private Query getQuery(VectorEntity vectorEntity, byte[] byteVector) {
-    var query = new Query(redisConfig.query())
-      .addParam(VECTOR_PARAM, byteVector)
-      .addParam(MAX_RESULTS_PARAM, properties.maxResults())
-      .dialect(REDIS_DIALECT_VALUE)
-      .setSortBy(redisConfig.scoreField(), true);
+    boolean isHnsw = HNSW.equals(properties.indexType());
 
-    var matcher = PARAMETERS_PATTERN.matcher(redisConfig.query());
-    while (matcher.find()) {
-      String param = matcher.group().substring(1);
-      query.addParam(param, vectorEntity.metadata().get(param));
+    int numberOfParameters = isHnsw ? HNSW_NB_PARAM : FLAT_NB_PARAMS;
+
+    Request ftCreateRequest = Request
+      .cmd(Command.FT_CREATE)
+      .arg(redisConfig.index())
+      .arg(ON)
+      .arg(JSON)
+      .arg(PREFIX)
+      .arg(ONE_PREFIX)
+      .arg(getFinalPrefixName())
+      .arg(SCHEMA)
+      .arg(JSON_ROOT + RETRIEVAL_CONTEXT_KEY_ATTR)
+      .arg(AS)
+      .arg(RETRIEVAL_CONTEXT_KEY_ATTR)
+      .arg(TAG)
+      .arg(JSON_ROOT + VECTOR_ATTR)
+      .arg(AS)
+      .arg(VECTOR_ATTR)
+      .arg(VECTOR_TYPE)
+      .arg(getVectorAlgorithm())
+      .arg(numberOfParameters)
+      .arg(VECTOR_TYPE_PROP_KEY)
+      .arg(VECTOR_TYPE_FLOAT32)
+      .arg(DIM_TYPE_PROP_KEY)
+      .arg(properties.embeddingSize())
+      .arg(DISTANCE_METRIC_PROP_KEY)
+      .arg(getDistanceMetric().name())
+      .arg(INITIAL_CAP_PROP_KEY)
+      .arg(storeConfig.initialCapacity());
+
+    if (isHnsw) {
+      ftCreateRequest
+        .arg(M_PROP_KEY)
+        .arg(storeConfig.M())
+        .arg(EF_CONSTRUCTION_PROP_KEY)
+        .arg(storeConfig.efConstruction())
+        .arg(EF_RUNTIME_PROP_KEY)
+        .arg(storeConfig.efRuntime())
+        .arg(EPSILON_PROP_KEY)
+        .arg(storeConfig.epsilon());
+    } else {
+      ftCreateRequest.arg(BLOCK_SIZE_PROP_KEY).arg(Integer.toString(storeConfig.blockSize()));
     }
 
-    return query;
+    return ftCreateRequest;
   }
 
-  private static Map<String, Object> extractMetadata(String json) {
-    try {
-      return OBJECT_MAPPER.readValue(json, HashMap.class);
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
+  private Maybe<String> indexExists(String indexName) {
+    // We return an empty field when index exists so that
+    return redisClient
+      .rxSend(Request.cmd(Command.FT__LIST))
+      .flatMap(response -> {
+        if (MULTI.equals(response.type()) && response.size() > 0) {
+          for (int i = 0; i < response.size(); i++) {
+            if (indexName.equals(response.get(i).toString())) {
+              return Maybe.empty();
+            }
+          }
+        }
+        return Maybe.just(indexName);
+      });
+  }
+
+  private Redis buildClient() throws URISyntaxException {
+    var clientOptions = new RedisOptions();
+    clientOptions.setConnectionString(getUri().toASCIIString());
+    clientOptions.setMaxPoolSize(redisConfig.maxPoolSize());
+
+    return Redis.createClient(vertx, clientOptions);
+  }
+
+  private URI getUri() throws URISyntaxException {
+    URI uri = new URI(redisConfig.url());
+    if (notEmpty(redisConfig.username()) && notEmpty(redisConfig.password())) {
+      return getUsernameAndPasswordUri(uri);
     }
+    return uri;
   }
 
-  public static byte[] toByteArray(float[] input) {
-    byte[] bytes = new byte[Float.BYTES * input.length];
-    ByteBuffer.wrap(bytes).order(LITTLE_ENDIAN).asFloatBuffer().put(input);
-    return bytes;
+  private boolean notEmpty(String value) {
+    return value != null && !value.isBlank();
   }
 
   private URI getUsernameAndPasswordUri(URI u) throws URISyntaxException {
@@ -265,8 +243,168 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
     );
   }
 
+  private String getFinalPrefixName() {
+    return redisConfig.prefix() + ":";
+  }
+
+  private String getVectorAlgorithm() {
+    return switch (properties.indexType()) {
+      case FLAT, HNSW -> properties.indexType().name();
+      case IVF -> throw new IllegalArgumentException("IVF not supported");
+    };
+  }
+
+  private DistanceMetric getDistanceMetric() {
+    return switch (properties.similarity()) {
+      case EUCLIDEAN -> DistanceMetric.L2;
+      case COSINE -> DistanceMetric.COSINE;
+      case DOT -> DistanceMetric.IP;
+    };
+  }
+
+  @Override
+  public Completable add(VectorEntity vectorEntity) {
+    if (properties.readOnly()) {
+      log.debug("AiVectorStoreRedisResource.add is read-only");
+      return Completable.complete();
+    }
+    Map<String, Object> doc = new HashMap<>();
+    doc.put(VECTOR_ATTR, vectorEntity.vector());
+    doc.put(TEXT_ATTR, vectorEntity.text());
+    doc.putAll(vectorEntity.metadata());
+
+    String id = getFinalPrefixName() + vectorEntity.id();
+    String json = Json.encode(doc);
+
+    Request jsonSetReq = Request.cmd(Command.JSON_SET).arg(id).arg("$").arg(json);
+
+    Completable jsonSet = redisClient.rxSend(jsonSetReq).ignoreElement();
+
+    if (!properties.allowEviction()) {
+      return jsonSet;
+    }
+
+    var expireAtRequest = getExpireAtRequest(id, vectorEntity.timestamp());
+    return jsonSet.andThen(redisClient.rxSend(expireAtRequest).ignoreElement());
+  }
+
+  private Request getExpireAtRequest(String id, long vectorTimestampMs) {
+    long timestampSeconds = MILLISECONDS.toSeconds(vectorTimestampMs);
+    long evictTimeSeconds = properties.evictTimeUnit().toSeconds(properties.evictTime());
+    long expireAt = timestampSeconds + evictTimeSeconds;
+
+    return Request.cmd(Command.EXPIREAT).arg(id).arg(expireAt);
+  }
+
+  @Override
+  public Flowable<VectorResult> findRelevant(VectorEntity vectorEntity) {
+    return Maybe
+      .fromCallable(() -> toByteArray(vectorEntity.vector()))
+      .subscribeOn(Schedulers.io())
+      .map(byteVector -> buildSearchRequest(vectorEntity, byteVector))
+      .flatMap(redisClient::rxSend)
+      .onErrorResumeNext(e -> {
+        log.debug("Could not search for similar vector entities", e);
+        return Maybe.empty();
+      })
+      .toFlowable()
+      .flatMap(searchResult -> {
+        if (isMap(searchResult)) {
+          var results = searchResult.get(REDIS_RESULT_ATTR);
+          if (MULTI.equals(results.type()) && results.size() > 0) {
+            var documents = new ArrayList<Document>(searchResult.size());
+            results.forEach(response -> {
+              Response extraAttributes = response.get(EXTRA_ATTRIBUTES_ATTR);
+              documents.add(
+                new Document(
+                  response.get(ID_ATTR).toString(),
+                  extraAttributes.get(redisConfig.scoreField()).toFloat(),
+                  getMetadata(extraAttributes)
+                )
+              );
+            });
+            return Flowable.fromIterable(documents);
+          }
+        }
+        return Flowable.empty();
+      })
+      .map(document -> {
+        String text = document.metadata().get(TEXT_ATTR).toString();
+        document.metadata().remove(TEXT_ATTR);
+        document.metadata().remove(VECTOR_ATTR);
+        return new VectorResult(new VectorEntity(document.id(), text, document.metadata()), normalizeSore(document.score()));
+      })
+      .sorted(comparingDouble(result -> -result.score()))
+      .filter(result -> result.score() >= properties.threshold());
+  }
+
+  private static boolean isMap(Response searchResult) {
+    return MULTI.equals(searchResult.type()) && !searchResult.getKeys().isEmpty();
+  }
+
+  private static Map<String, Object> getMetadata(Response extraAttributes) {
+    try {
+      return OBJECT_MAPPER.readValue(extraAttributes.get("$").toString(), HashMap.class);
+    } catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private float normalizeSore(float score) {
+    return switch (this.properties.similarity()) {
+      case EUCLIDEAN -> 2 / (2 + score);
+      case COSINE, DOT -> (2 - score) / 2;
+    };
+  }
+
+  public Request buildSearchRequest(VectorEntity vectorEntity, byte[] byteVector) {
+    String queryString = redisConfig.query();
+    String indexName = redisConfig.index();
+    String scoreField = redisConfig.scoreField();
+
+    var request = Request
+      .cmd(Command.FT_SEARCH)
+      .arg(indexName)
+      .arg(queryString)
+      .arg(DIALECT_KEY)
+      .arg(REDIS_DIALECT_VALUE)
+      .arg(SORTBY_KET)
+      .arg(scoreField)
+      .arg(SORT_DIRECTION);
+
+    Map<String, String> params = new LinkedHashMap<>();
+    Matcher matcher = PARAMETERS_PATTERN.matcher(queryString);
+    while (matcher.find()) {
+      String param = matcher.group().substring(1);
+      Object value = vectorEntity.metadata().get(param);
+      if (value != null) {
+        params.put(param, value.toString());
+      }
+    }
+
+    request.arg(FT_SEARCH_NB_PARAMS_PROP_KEY).arg((params.size() * 2) + 4);
+
+    params.forEach((key, value) -> request.arg(key).arg(value));
+
+    return request.arg(MAX_RESULTS_PARAM).arg(Integer.toString(properties.maxResults())).arg(VECTOR_PARAM).arg(byteVector);
+  }
+
+  public static byte[] toByteArray(float[] input) {
+    byte[] bytes = new byte[Float.BYTES * input.length];
+    ByteBuffer.wrap(bytes).order(LITTLE_ENDIAN).asFloatBuffer().put(input);
+    return bytes;
+  }
+
+  @Override
+  public void doStop() throws Exception {
+    super.doStop();
+    redisClient.close();
+  }
+
   @Override
   public void remove(VectorEntity vectorEntity) {
     throw new UnsupportedOperationException("AiVectorStoreRedisResource.remove not supported.");
   }
+
+  private record Document(String id, float score, Map<String, Object> metadata) {}
 }

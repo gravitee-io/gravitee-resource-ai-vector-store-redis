@@ -27,5 +27,6 @@ public record RedisConfiguration(
   String prefix,
   String query,
   String scoreField,
+  int maxPoolSize,
   RedisVectorStoreConfiguration vectorStoreConfig
 ) {}

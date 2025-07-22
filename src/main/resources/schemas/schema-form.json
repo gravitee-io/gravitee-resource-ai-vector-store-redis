@@ -1,7 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "AI Vector Store Redis Configuration",
-  "description": "Configuration schema for setting up an AI-powered vector store using Redis, including vector similarity parameters, Redis connection settings, and storage behavior.",
   "type": "object",
   "properties": {
     "properties": {
@@ -52,7 +51,7 @@
         },
         "readOnly": {
           "type": "boolean",
-          "title": "Allow Readonly",
+          "title": "Read-only",
           "description": "If true, disables writes and enables read-only access to the index.",
           "default": true
         },
@@ -158,6 +157,13 @@
           "default": "score"
         },
         "vectorStoreConfig": {
+          "gioConfig": {
+            "displayIf": {
+              "$eq": {
+                "value.properties.readOnly": false
+              }
+            }
+          },
           "type": "object",
           "title": "Redis Vector Store Configuration",
           "description": "Performance and storage tuning options for Redis vector store backend.",
@@ -174,14 +180,72 @@
               "title": "Block Size",
               "description": "Number of additional vectors allocated when resizing internal memory structures.",
               "minimum": 1,
-              "default": 10
-
+              "default": 10,
+              "gioConfig": {
+                "displayIf": {
+                  "$eq": {
+                    "value.properties.indexType": "FLAT"
+                  }
+                }
+              }
+            },
+            "M": {
+              "type": "integer",
+              "title": "M",
+              "description": "Max number of outgoing edges (connections) for each node in a graph layer. On layer zero, the max number of connections will be 2 * M. Higher values increase accuracy, but also increase memory usage and index build time.",
+              "minimum": 0,
+              "default": 16,
+              "gioConfig": {
+                "displayIf": {
+                  "$eq": {
+                    "value.properties.indexType": "HNSW"
+                  }
+                }
+              }
+            },
+            "efConstruction": {
+              "type": "integer",
+              "title": "EF Construction",
+              "description": "Max number of connected neighbors to consider during graph building. Higher values increase accuracy, but also increase index build time.",
+              "minimum": 0,
+              "default": 200,
+              "gioConfig": {
+                "displayIf": {
+                  "$eq": {
+                    "value.properties.indexType": "HNSW"
+                  }
+                }
+              }
+            },
+            "efRuntime": {
+              "type": "integer",
+              "title": "EF Runtime",
+              "description": "Max top candidates during KNN search. Higher values increase accuracy, but also increase search latency.",
+              "minimum": 0,
+              "default": 10,
+              "gioConfig": {
+                "displayIf": {
+                  "$eq": {
+                    "value.properties.indexType": "HNSW"
+                  }
+                }
+              }
+            },
+            "epsilon": {
+              "type": "number",
+              "title": "EF Runtime",
+              "description": "Relative factor that sets the boundaries in which a range query may search for candidates. That is, vector candidates whose distance from the query vector is radius * (1 + EPSILON) are potentially scanned, allowing more extensive search and more accurate results, at the expense of run time.",
+              "minimum": 0,
+              "default": 0.01,
+              "gioConfig": {
+                "displayIf": {
+                  "$eq": {
+                    "value.properties.indexType": "HNSW"
+                  }
+                }
+              }
             }
-          },
-          "required": [
-            "initialCapacity",
-            "blockSize"
-          ]
+          }
         }
       },
       "required": [

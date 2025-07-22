@@ -19,4 +19,11 @@ package io.gravitee.resource.ai.vector.store.redis.configuration;
  * @author Rémi SULTAN (remi.sultan at graviteesource.com)
  * @author GraviteeSource Team
  */
-public record RedisVectorStoreConfiguration(int initialCapacity, int blockSize) {}
+public record RedisVectorStoreConfiguration(
+  int M,
+  int efConstruction,
+  int efRuntime,
+  float epsilon,
+  int initialCapacity,
+  int blockSize
+) {}

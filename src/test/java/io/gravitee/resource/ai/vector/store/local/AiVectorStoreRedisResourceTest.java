@@ -19,17 +19,19 @@ import static io.gravitee.resource.ai.vector.store.api.IndexType.FLAT;
 import static io.gravitee.resource.ai.vector.store.api.IndexType.HNSW;
 import static io.gravitee.resource.ai.vector.store.api.Similarity.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import io.gravitee.resource.ai.vector.store.api.AiVectorStoreProperties;
 import io.gravitee.resource.ai.vector.store.api.VectorEntity;
 import io.gravitee.resource.ai.vector.store.api.VectorResult;
-import io.gravitee.resource.ai.vector.store.local.configuration.*;
 import io.gravitee.resource.ai.vector.store.redis.AiVectorStoreRedisResource;
 import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRedisConfiguration;
 import io.gravitee.resource.ai.vector.store.redis.configuration.RedisConfiguration;
 import io.gravitee.resource.ai.vector.store.redis.configuration.RedisVectorStoreConfiguration;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.subscribers.TestSubscriber;
+import io.vertx.rxjava3.core.Vertx;
 import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.UUID;
@@ -39,10 +41,11 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.context.ApplicationContext;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
-class AilVectorStoreRedisResourceTest {
+class AiVectorStoreRedisResourceTest {
 
   static final GenericContainer<?> redis = new GenericContainer<>(
     DockerImageName.parse("redis/redis-stack-server:7.2.0-v18")
@@ -104,6 +107,11 @@ class AilVectorStoreRedisResourceTest {
     throws Exception {
     AiVectorStoreRedisResource resource = new AiVectorStoreRedisResource();
     injectConfiguration(resource, config);
+
+    var appCtx = mock(ApplicationContext.class);
+    when(appCtx.getBean(Vertx.class)).thenReturn(Vertx.vertx());
+    resource.setApplicationContext(appCtx);
+
     resource.doStart();
 
     try {
@@ -125,12 +133,11 @@ class AilVectorStoreRedisResourceTest {
         System.currentTimeMillis()
       );
 
-      resource.add(entity);
-
       TestSubscriber<VectorResult> subscriber = resource
-        .findRelevant(similarEntity)
+        .add(entity)
+        .andThen(resource.findRelevant(similarEntity))
         .test()
-        .awaitDone(2, TimeUnit.SECONDS)
+        .awaitDone(5, TimeUnit.SECONDS)
         .assertComplete()
         .assertNoErrors()
         .assertValueCount(1);
@@ -158,7 +165,8 @@ class AilVectorStoreRedisResourceTest {
             "test_4",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -176,7 +184,8 @@ class AilVectorStoreRedisResourceTest {
             "test_5",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -194,7 +203,8 @@ class AilVectorStoreRedisResourceTest {
             "test_6",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -212,7 +222,8 @@ class AilVectorStoreRedisResourceTest {
             "test_1",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -230,7 +241,8 @@ class AilVectorStoreRedisResourceTest {
             "test_2",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -248,7 +260,8 @@ class AilVectorStoreRedisResourceTest {
             "test_3",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -264,6 +277,11 @@ class AilVectorStoreRedisResourceTest {
     throws Exception {
     AiVectorStoreRedisResource resource = new AiVectorStoreRedisResource();
     injectConfiguration(resource, config);
+
+    var appCtx = mock(ApplicationContext.class);
+    when(appCtx.getBean(Vertx.class)).thenReturn(Vertx.vertx());
+    resource.setApplicationContext(appCtx);
+
     resource.doStart();
 
     try {
@@ -285,12 +303,11 @@ class AilVectorStoreRedisResourceTest {
         System.currentTimeMillis()
       );
 
-      resource.add(entity);
-
       TestSubscriber<VectorResult> subscriber = resource
-        .findRelevant(similarEntity)
+        .add(entity)
+        .andThen(resource.findRelevant(similarEntity))
         .test()
-        .awaitDone(2, TimeUnit.SECONDS)
+        .awaitDone(3, TimeUnit.SECONDS)
         .assertComplete()
         .assertNoErrors()
         .assertValueCount(1);
@@ -327,7 +344,8 @@ class AilVectorStoreRedisResourceTest {
             "test_4",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -345,7 +363,8 @@ class AilVectorStoreRedisResourceTest {
             "test_5",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -363,7 +382,8 @@ class AilVectorStoreRedisResourceTest {
             "test_6",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -381,7 +401,8 @@ class AilVectorStoreRedisResourceTest {
             "test_1",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -399,7 +420,8 @@ class AilVectorStoreRedisResourceTest {
             "test_2",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -417,7 +439,8 @@ class AilVectorStoreRedisResourceTest {
             "test_3",
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
-            new RedisVectorStoreConfiguration(5, 10)
+            6,
+            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
