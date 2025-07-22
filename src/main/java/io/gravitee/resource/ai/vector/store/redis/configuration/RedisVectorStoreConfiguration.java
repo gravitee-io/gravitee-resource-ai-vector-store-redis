@@ -20,6 +20,7 @@ package io.gravitee.resource.ai.vector.store.redis.configuration;
  * @author GraviteeSource Team
  */
 public record RedisVectorStoreConfiguration(
+  VectorType vectorType,
   int M,
   int efConstruction,
   int efRuntime,

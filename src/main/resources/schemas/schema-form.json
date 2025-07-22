@@ -167,7 +167,23 @@
           "type": "object",
           "title": "Redis Vector Store Configuration",
           "description": "Performance and storage tuning options for Redis vector store backend.",
+          "required": [
+            "vectorType",
+            "initialCapacity"
+          ],
           "properties": {
+            "vectorType": {
+              "type": "string",
+              "title": "Vector scalar type",
+              "description": "Precision of scalars in vector",
+              "enum": [
+                "BFLOAT16",
+                "FLOAT16",
+                "FLOAT32",
+                "FLOAT64"
+              ],
+              "default": "FLOAT32"
+            },
             "initialCapacity": {
               "type": "integer",
               "title": "Initial Capacity",

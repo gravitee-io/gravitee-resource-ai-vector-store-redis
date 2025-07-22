@@ -27,6 +27,7 @@ import io.gravitee.resource.ai.vector.store.api.*;
 import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRedisConfiguration;
 import io.gravitee.resource.ai.vector.store.redis.configuration.DistanceMetric;
 import io.gravitee.resource.ai.vector.store.redis.configuration.RedisConfiguration;
+import io.gravitee.resource.ai.vector.store.redis.configuration.VectorType;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Maybe;
@@ -62,7 +63,6 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   private static final String DISTANCE_METRIC_PROP_KEY = "DISTANCE_METRIC";
   private static final String INITIAL_CAP_PROP_KEY = "INITIAL_CAP";
   private static final String BLOCK_SIZE_PROP_KEY = "BLOCK_SIZE";
-  private static final String VECTOR_TYPE_FLOAT32 = "FLOAT32";
   private static final String M_PROP_KEY = "M";
   private static final String EF_CONSTRUCTION_PROP_KEY = "EF_CONSTRUCTION";
   private static final String EF_RUNTIME_PROP_KEY = "EF_RUNTIME";
@@ -81,7 +81,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
 
   private static final String OK_REDIS_RESPONSE = "OK";
   private static final String AS = "AS";
-  private static final String VECTOR_TYPE = "VECTOR";
+  private static final String VECTOR_TYPE_DEF = "VECTOR";
   private static final String SCHEMA = "SCHEMA";
   private static final String PREFIX = "PREFIX";
   private static final int ONE_PREFIX = 1;
@@ -166,11 +166,11 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
       .arg(JSON_ROOT + VECTOR_ATTR)
       .arg(AS)
       .arg(VECTOR_ATTR)
-      .arg(VECTOR_TYPE)
+      .arg(VECTOR_TYPE_DEF)
       .arg(getVectorAlgorithm())
       .arg(numberOfParameters)
       .arg(VECTOR_TYPE_PROP_KEY)
-      .arg(VECTOR_TYPE_FLOAT32)
+      .arg(storeConfig.vectorType().name())
       .arg(DIM_TYPE_PROP_KEY)
       .arg(properties.embeddingSize())
       .arg(DISTANCE_METRIC_PROP_KEY)
@@ -298,8 +298,10 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
 
   @Override
   public Flowable<VectorResult> findRelevant(VectorEntity vectorEntity) {
+    var vectorType = redisConfig.vectorStoreConfig().vectorType();
+
     return Maybe
-      .fromCallable(() -> toByteArray(vectorEntity.vector()))
+      .fromCallable(() -> vectorType.toBytes(vectorEntity.vector()))
       .subscribeOn(Schedulers.io())
       .map(byteVector -> buildSearchRequest(vectorEntity, byteVector))
       .flatMap(redisClient::rxSend)
@@ -387,12 +389,6 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
     params.forEach((key, value) -> request.arg(key).arg(value));
 
     return request.arg(MAX_RESULTS_PARAM).arg(Integer.toString(properties.maxResults())).arg(VECTOR_PARAM).arg(byteVector);
-  }
-
-  public static byte[] toByteArray(float[] input) {
-    byte[] bytes = new byte[Float.BYTES * input.length];
-    ByteBuffer.wrap(bytes).order(LITTLE_ENDIAN).asFloatBuffer().put(input);
-    return bytes;
   }
 
   @Override

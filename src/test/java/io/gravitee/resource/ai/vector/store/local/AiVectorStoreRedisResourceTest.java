@@ -18,6 +18,7 @@ package io.gravitee.resource.ai.vector.store.local;
 import static io.gravitee.resource.ai.vector.store.api.IndexType.FLAT;
 import static io.gravitee.resource.ai.vector.store.api.IndexType.HNSW;
 import static io.gravitee.resource.ai.vector.store.api.Similarity.*;
+import static io.gravitee.resource.ai.vector.store.redis.configuration.VectorType.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -29,6 +30,7 @@ import io.gravitee.resource.ai.vector.store.redis.AiVectorStoreRedisResource;
 import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRedisConfiguration;
 import io.gravitee.resource.ai.vector.store.redis.configuration.RedisConfiguration;
 import io.gravitee.resource.ai.vector.store.redis.configuration.RedisVectorStoreConfiguration;
+import io.gravitee.resource.ai.vector.store.redis.configuration.VectorType;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.subscribers.TestSubscriber;
 import io.vertx.rxjava3.core.Vertx;
@@ -47,9 +49,7 @@ import org.testcontainers.utility.DockerImageName;
 
 class AiVectorStoreRedisResourceTest {
 
-  static final GenericContainer<?> redis = new GenericContainer<>(
-    DockerImageName.parse("redis/redis-stack-server:7.2.0-v18")
-  )
+  static final GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis/redis-stack-server:latest"))
     .withExposedPorts(6379);
 
   public static float[] vector1 = new float[] {
@@ -166,7 +166,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -185,7 +185,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -204,7 +204,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -223,7 +223,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -242,7 +242,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -261,7 +261,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -345,7 +345,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -364,7 +364,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -383,7 +383,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -402,7 +402,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -421,7 +421,7 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
@@ -440,13 +440,88 @@ class AiVectorStoreRedisResourceTest {
             "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
             "score",
             6,
-            new RedisVectorStoreConfiguration(16, 200, 10, 0.01f, 5, 10)
+            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
           )
         ),
         vector1,
         vector3,
         0.3f
       )
+    );
+  }
+
+  @ParameterizedTest
+  @MethodSource("params_that_must_test_different_vector_types")
+  void must_test_different_vector_types(int index, VectorType vectorType, float[] v1, float[] v2, float score)
+    throws Exception {
+    var config = new AiVectorStoreRedisConfiguration(
+      new AiVectorStoreProperties(vector1.length, 1, COSINE, 0.0f, HNSW, false, true, 2, TimeUnit.SECONDS),
+      new RedisConfiguration(
+        "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort(),
+        null,
+        null,
+        "test_vector" + index,
+        "test_vector" + index,
+        "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
+        "score",
+        6,
+        new RedisVectorStoreConfiguration(vectorType, 16, 200, 10, 0.01f, 5, 10)
+      )
+    );
+
+    AiVectorStoreRedisResource resource = new AiVectorStoreRedisResource();
+    injectConfiguration(resource, config);
+
+    var appCtx = mock(ApplicationContext.class);
+    when(appCtx.getBean(Vertx.class)).thenReturn(Vertx.vertx());
+    resource.setApplicationContext(appCtx);
+
+    resource.doStart();
+
+    try {
+      var metadata = Map.<String, Object>of("retrieval_context_key", "ctx1", "category", "test");
+
+      String id = UUID.randomUUID().toString();
+      var entity = new VectorEntity(
+        id,
+        "The big brown fox jumps over the lazy dog",
+        v1,
+        metadata,
+        System.currentTimeMillis()
+      );
+      var similarEntity = new VectorEntity(
+        id,
+        "The brown fox jumps over the lazy dog",
+        v2,
+        metadata,
+        System.currentTimeMillis()
+      );
+
+      TestSubscriber<VectorResult> subscriber = resource
+        .add(entity)
+        .andThen(resource.findRelevant(similarEntity))
+        .test()
+        .awaitDone(5, TimeUnit.SECONDS)
+        .assertComplete()
+        .assertNoErrors()
+        .assertValueCount(1);
+
+      VectorResult result = subscriber.values().get(0);
+
+      assertEquals(config.redisConfig().prefix() + ":" + id, result.entity().id());
+      assertEquals("ctx1", result.entity().metadata().get("retrieval_context_key"));
+      assertTrue(result.score() >= score);
+    } finally {
+      resource.doStop();
+    }
+  }
+
+  public static Stream<Arguments> params_that_must_test_different_vector_types() {
+    return Stream.of(
+      Arguments.of(1, FLOAT32, vector1, vector2, 0.5f),
+      Arguments.of(2, FLOAT64, vector1, vector2, 0.5f),
+      Arguments.of(3, FLOAT16, vector1, vector2, 0.5f),
+      Arguments.of(4, BFLOAT16, vector1, vector2, 0.5f)
     );
   }
 
