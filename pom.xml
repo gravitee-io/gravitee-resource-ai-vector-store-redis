@@ -42,28 +42,11 @@
         <scope>import</scope>
         <type>pom</type>
       </dependency>
-      <dependency>
-        <groupId>io.gravitee.node</groupId>
-        <artifactId>gravitee-node</artifactId>
-        <version>${gravitee-node.version}</version>
-        <scope>import</scope>
-        <type>pom</type>
-      </dependency>
-      <dependency>
-        <groupId>io.vertx</groupId>
-        <artifactId>vertx-core</artifactId>
-        <version>${vertx.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.vertx</groupId>
-        <artifactId>vertx-rx-java3</artifactId>
-        <version>${vertx.version}</version>
-      </dependency>
     </dependencies>
   </dependencyManagement>
 
   <properties>
-    <gravitee-bom.version>8.3.0</gravitee-bom.version>
+    <gravitee-bom.version>8.3.14</gravitee-bom.version>
     <junit-jupiter.version>5.12.0</junit-jupiter.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <gravitee-resource-api.version>1.1.0</gravitee-resource-api.version>
@@ -87,21 +70,8 @@
 
     <!-- Gravitee.io -->
     <dependency>
-      <groupId>io.gravitee.node</groupId>
-      <artifactId>gravitee-node-vertx</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
       <groupId>io.reactivex.rxjava3</groupId>
       <artifactId>rxjava</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>io.gravitee.common</groupId>
-      <artifactId>gravitee-common</artifactId>
-      <version>${gravitee-common.version}</version>
       <scope>provided</scope>
     </dependency>
 
@@ -134,20 +104,28 @@
     <!-- Vert.x -->
     <dependency>
       <groupId>io.vertx</groupId>
+      <artifactId>vertx-redis-client</artifactId>
+      <version>${vertx.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>io.vertx</groupId>
+          <artifactId>vertx-core</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.vertx</groupId>
       <artifactId>vertx-core</artifactId>
+      <version>${vertx.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <dependency>
       <groupId>io.vertx</groupId>
       <artifactId>vertx-rx-java3</artifactId>
-      <scope>provided</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>io.vertx</groupId>
-      <artifactId>vertx-redis-client</artifactId>
       <version>${vertx.version}</version>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>

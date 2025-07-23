@@ -17,7 +17,6 @@ package io.gravitee.resource.ai.vector.store.redis;
 
 import static io.gravitee.resource.ai.vector.store.api.IndexType.HNSW;
 import static io.vertx.redis.client.ResponseType.MULTI;
-import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static java.util.Comparator.comparingDouble;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -27,21 +26,16 @@ import io.gravitee.resource.ai.vector.store.api.*;
 import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRedisConfiguration;
 import io.gravitee.resource.ai.vector.store.redis.configuration.DistanceMetric;
 import io.gravitee.resource.ai.vector.store.redis.configuration.RedisConfiguration;
-import io.gravitee.resource.ai.vector.store.redis.configuration.VectorType;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.vertx.core.json.Json;
-import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.*;
 import io.vertx.rxjava3.core.Vertx;
-import io.vertx.rxjava3.redis.client.Command;
-import io.vertx.rxjava3.redis.client.Redis;
-import io.vertx.rxjava3.redis.client.Request;
-import io.vertx.rxjava3.redis.client.Response;
+import io.vertx.rxjava3.impl.AsyncResultMaybe;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -101,7 +95,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   private AiVectorStoreProperties properties;
   private RedisConfiguration redisConfig;
 
-  private Redis redisClient;
+  private Redis client;
   private Vertx vertx;
 
   @Override
@@ -111,7 +105,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
 
     properties = super.configuration().properties();
     redisConfig = super.configuration().redisConfig();
-    redisClient = buildClient();
+    client = buildClient();
 
     if (properties.readOnly()) {
       log.debug("AilVectorStoreRedisResource is read-only");
@@ -129,7 +123,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
         })
       )
       .map(this::createIndexRequest)
-      .flatMap(redisClient::rxSend)
+      .flatMap(this::rxSend)
       .subscribe(
         response -> {
           var content = response.toString();
@@ -196,9 +190,8 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   }
 
   private Maybe<String> indexExists(String indexName) {
-    // We return an empty field when index exists so that
-    return redisClient
-      .rxSend(Request.cmd(Command.FT__LIST))
+    // We return an empty field when index exists so that we stop the index c
+    return rxSend(Request.cmd(Command.FT__LIST))
       .flatMap(response -> {
         if (MULTI.equals(response.type()) && response.size() > 0) {
           for (int i = 0; i < response.size(); i++) {
@@ -216,7 +209,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
     clientOptions.setConnectionString(getUri().toASCIIString());
     clientOptions.setMaxPoolSize(redisConfig.maxPoolSize());
 
-    return Redis.createClient(vertx, clientOptions);
+    return Redis.createClient(vertx.getDelegate(), clientOptions);
   }
 
   private URI getUri() throws URISyntaxException {
@@ -278,14 +271,14 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
 
     Request jsonSetReq = Request.cmd(Command.JSON_SET).arg(id).arg("$").arg(json);
 
-    Completable jsonSet = redisClient.rxSend(jsonSetReq).ignoreElement();
+    Completable jsonSet = rxSend(jsonSetReq).ignoreElement();
 
     if (!properties.allowEviction()) {
       return jsonSet;
     }
 
     var expireAtRequest = getExpireAtRequest(id, vectorEntity.timestamp());
-    return jsonSet.andThen(redisClient.rxSend(expireAtRequest).ignoreElement());
+    return jsonSet.andThen(rxSend(expireAtRequest).ignoreElement());
   }
 
   private Request getExpireAtRequest(String id, long vectorTimestampMs) {
@@ -304,7 +297,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
       .fromCallable(() -> vectorType.toBytes(vectorEntity.vector()))
       .subscribeOn(Schedulers.io())
       .map(byteVector -> buildSearchRequest(vectorEntity, byteVector))
-      .flatMap(redisClient::rxSend)
+      .flatMap(this::rxSend)
       .onErrorResumeNext(e -> {
         log.debug("Could not search for similar vector entities", e);
         return Maybe.empty();
@@ -394,12 +387,16 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   @Override
   public void doStop() throws Exception {
     super.doStop();
-    redisClient.close();
+    client.close();
   }
 
   @Override
   public void remove(VectorEntity vectorEntity) {
     throw new UnsupportedOperationException("AiVectorStoreRedisResource.remove not supported.");
+  }
+
+  public Maybe<Response> rxSend(Request command) {
+    return AsyncResultMaybe.toMaybe(client.send(command)::onComplete);
   }
 
   private record Document(String id, float score, Map<String, Object> metadata) {}

@@ -133,6 +133,13 @@
           "description": "Optional Password for authenticating with the Redis server.",
           "format": "password"
         },
+        "maxPoolSize": {
+          "type": "integer",
+          "title": "Max pool size",
+          "description": "Number of pooled connection the redis client can hold",
+          "minimum": 1,
+          "default": 6
+        },
         "index": {
           "type": "string",
           "title": "Index name",
@@ -157,13 +164,6 @@
           "default": "score"
         },
         "vectorStoreConfig": {
-          "gioConfig": {
-            "displayIf": {
-              "$eq": {
-                "value.properties.readOnly": false
-              }
-            }
-          },
           "type": "object",
           "title": "Redis Vector Store Configuration",
           "description": "Performance and storage tuning options for Redis vector store backend.",
@@ -189,7 +189,14 @@
               "title": "Initial Capacity",
               "description": "Number of vectors to allocate memory for on initialization. Helps optimize memory if known in advance.",
               "minimum": 0,
-              "default": 5
+              "default": 5,
+              "gioConfig": {
+                "displayIf": {
+                  "$eq": {
+                    "value.properties.readOnly": false
+                  }
+                }
+              }
             },
             "blockSize": {
               "type": "integer",
@@ -200,7 +207,8 @@
               "gioConfig": {
                 "displayIf": {
                   "$eq": {
-                    "value.properties.indexType": "FLAT"
+                    "value.properties.indexType": "FLAT",
+                    "value.properties.readOnly": false
                   }
                 }
               }
@@ -214,7 +222,8 @@
               "gioConfig": {
                 "displayIf": {
                   "$eq": {
-                    "value.properties.indexType": "HNSW"
+                    "value.properties.indexType": "HNSW",
+                    "value.properties.readOnly": false
                   }
                 }
               }
@@ -228,7 +237,8 @@
               "gioConfig": {
                 "displayIf": {
                   "$eq": {
-                    "value.properties.indexType": "HNSW"
+                    "value.properties.indexType": "HNSW",
+                    "value.properties.readOnly": false
                   }
                 }
               }
@@ -242,21 +252,23 @@
               "gioConfig": {
                 "displayIf": {
                   "$eq": {
-                    "value.properties.indexType": "HNSW"
+                    "value.properties.indexType": "HNSW",
+                    "value.properties.readOnly": false
                   }
                 }
               }
             },
             "epsilon": {
               "type": "number",
-              "title": "EF Runtime",
+              "title": "Epsilon",
               "description": "Relative factor that sets the boundaries in which a range query may search for candidates. That is, vector candidates whose distance from the query vector is radius * (1 + EPSILON) are potentially scanned, allowing more extensive search and more accurate results, at the expense of run time.",
               "minimum": 0,
               "default": 0.01,
               "gioConfig": {
                 "displayIf": {
                   "$eq": {
-                    "value.properties.indexType": "HNSW"
+                    "value.properties.indexType": "HNSW",
+                    "value.properties.readOnly": false
                   }
                 }
               }
