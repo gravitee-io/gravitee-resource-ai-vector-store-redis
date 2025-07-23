@@ -108,7 +108,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
     client = buildClient();
 
     if (properties.readOnly()) {
-      log.debug("AilVectorStoreRedisResource is read-only");
+      log.debug("AiVectorStoreRedisResource is read-only");
     } else {
       createIndex();
     }
