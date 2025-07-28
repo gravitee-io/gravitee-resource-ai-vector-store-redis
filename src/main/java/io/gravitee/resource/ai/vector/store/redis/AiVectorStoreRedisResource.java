@@ -37,8 +37,10 @@ import io.vertx.rxjava3.impl.AsyncResultMaybe;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -79,7 +81,8 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   private static final String SCHEMA = "SCHEMA";
   private static final String PREFIX = "PREFIX";
   private static final int ONE_PREFIX = 1;
-  private static final String JSON_ROOT = "$.";
+  public static final String JSON_PATH = "$";
+  private static final String JSON_ROOT = JSON_PATH + "$.";
   private static final String TAG = "TAG";
   private static final String ON = "ON";
   private static final String JSON = "JSON";
@@ -324,7 +327,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
         return Flowable.empty();
       })
       .map(document -> {
-        String text = document.metadata().get(TEXT_ATTR).toString();
+        String text = (String) document.metadata().get(TEXT_ATTR);
         document.metadata().remove(TEXT_ATTR);
         document.metadata().remove(VECTOR_ATTR);
         return new VectorResult(new VectorEntity(document.id(), text, document.metadata()), normalizeSore(document.score()));
@@ -339,7 +342,15 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
 
   private static Map<String, Object> getMetadata(Response extraAttributes) {
     try {
-      return OBJECT_MAPPER.readValue(extraAttributes.get("$").toString(), HashMap.class);
+      if (extraAttributes.get(JSON_PATH) != null) {
+        return OBJECT_MAPPER.readValue(extraAttributes.get(JSON_PATH).toString(), HashMap.class);
+      }
+      return extraAttributes
+        .getKeys()
+        .stream()
+        .filter(key -> extraAttributes.get(key) != null && !key.equals(VECTOR_ATTR))
+        .map(key -> Map.entry(key, extraAttributes.get(key).toString()))
+        .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
