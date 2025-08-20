@@ -67,7 +67,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   private static final String EF_CONSTRUCTION_PROP_KEY = "EF_CONSTRUCTION";
   private static final String EF_RUNTIME_PROP_KEY = "EF_RUNTIME";
   private static final String EPSILON_PROP_KEY = "EPSILON";
-  private static final int HNSW_NB_PARAM = 16;
+  private static final int HNSW_NB_PARAM = 8 * 2 ;
   private static final int FLAT_NB_PARAMS = 10;
 
   private static final String VECTOR_ATTR = "vector";
@@ -86,7 +86,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   private static final String PREFIX = "PREFIX";
   private static final int ONE_PREFIX = 1;
   public static final String JSON_PATH = "$";
-  private static final String JSON_ROOT = JSON_PATH + "$.";
+  private static final String JSON_ROOT = "$.";
   private static final String TAG = "TAG";
   private static final String ON = "ON";
   private static final String JSON = "JSON";
@@ -135,12 +135,12 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
         response -> {
           var content = response.toString();
           if (OK_REDIS_RESPONSE.equals(content)) {
-            log.debug("Redis client created");
+            log.debug("Redis index created");
           } else {
-            log.error("Could not create redis client: {}", content);
+            log.error("Could not index redis index: {}", content);
           }
         },
-        e -> log.error("Error creating redis client", e)
+        e -> log.error("Error creating redis index", e)
       );
   }
 
@@ -278,14 +278,12 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
 
     Request jsonSetReq = Request.cmd(Command.JSON_SET).arg(id).arg("$").arg(json);
 
-    Completable jsonSet = rxSend(jsonSetReq).ignoreElement();
-
     if (!properties.allowEviction()) {
-      return jsonSet;
+      return rxSend(jsonSetReq).ignoreElement();
     }
 
     var expireAtRequest = getExpireAtRequest(id, vectorEntity.timestamp());
-    return jsonSet.andThen(rxSend(expireAtRequest).ignoreElement());
+    return rxSend(jsonSetReq).flatMap(response -> rxSend(expireAtRequest)).ignoreElement();
   }
 
   private Request getExpireAtRequest(String id, long vectorTimestampMs) {
