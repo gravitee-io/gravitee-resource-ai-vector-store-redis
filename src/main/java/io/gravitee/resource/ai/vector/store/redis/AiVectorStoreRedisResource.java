@@ -31,7 +31,11 @@ import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.core.Maybe;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 import io.vertx.core.json.Json;
-import io.vertx.redis.client.*;
+import io.vertx.redis.client.Command;
+import io.vertx.redis.client.Redis;
+import io.vertx.redis.client.RedisOptions;
+import io.vertx.redis.client.Request;
+import io.vertx.redis.client.Response;
 import io.vertx.rxjava3.core.Vertx;
 import io.vertx.rxjava3.impl.AsyncResultMaybe;
 import java.net.URI;
@@ -330,7 +334,8 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
         String text = (String) document.metadata().get(TEXT_ATTR);
         document.metadata().remove(TEXT_ATTR);
         document.metadata().remove(VECTOR_ATTR);
-        return new VectorResult(new VectorEntity(document.id(), text, document.metadata()), normalizeSore(document.score()));
+        float score = properties.similarity().normalizeDistance(document.score());
+        return new VectorResult(new VectorEntity(document.id(), text, document.metadata()), score);
       })
       .sorted(comparingDouble(result -> -result.score()))
       .filter(result -> result.score() >= properties.threshold());
@@ -354,13 +359,6 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  private float normalizeSore(float score) {
-    return switch (this.properties.similarity()) {
-      case EUCLIDEAN -> 2 / (2 + score);
-      case COSINE, DOT -> (2 - score) / 2;
-    };
   }
 
   public Request buildSearchRequest(VectorEntity vectorEntity, byte[] byteVector) {
