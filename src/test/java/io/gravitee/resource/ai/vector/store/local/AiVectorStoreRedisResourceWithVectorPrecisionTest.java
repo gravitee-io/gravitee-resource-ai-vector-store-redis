@@ -15,7 +15,6 @@
  */
 package io.gravitee.resource.ai.vector.store.local;
 
-import static io.gravitee.resource.ai.vector.store.api.IndexType.FLAT;
 import static io.gravitee.resource.ai.vector.store.api.IndexType.HNSW;
 import static io.gravitee.resource.ai.vector.store.api.Similarity.*;
 import static io.gravitee.resource.ai.vector.store.redis.configuration.VectorType.*;
@@ -31,63 +30,18 @@ import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRed
 import io.gravitee.resource.ai.vector.store.redis.configuration.RedisConfiguration;
 import io.gravitee.resource.ai.vector.store.redis.configuration.RedisVectorStoreConfiguration;
 import io.gravitee.resource.ai.vector.store.redis.configuration.VectorType;
-import io.reactivex.rxjava3.core.Flowable;
 import io.reactivex.rxjava3.subscribers.TestSubscriber;
 import io.vertx.rxjava3.core.Vertx;
-import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
-
-import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.context.ApplicationContext;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
 
-class AiVectorStoreRedisResourceWithVectorPrecisionTest {
-
-  static final GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis/redis-stack:7.4.0-v5"))
-    .withExposedPorts(6379);
-
-  public static float[] vector1 = new float[] {
-    0.66953415f,
-    0.18902819f,
-    0.11021819f,
-    0.07593438f,
-    -0.04711385f,
-    0.03122021f,
-    -0.19437398f,
-    -0.16093858f,
-    0.03285817f,
-    -0.17519756f,
-  };
-
-  public static float[] vector2 = new float[] {
-    0.6766241f,
-    0.1793094f,
-    0.07874545f,
-    0.03933726f,
-    -0.06496269f,
-    0.06297384f,
-    -0.19972953f,
-    -0.21079123f,
-    0.03588087f,
-    0.16885366f,
-  };
-
-  @BeforeAll
-  static void startRedis() {
-    redis.start();
-  }
-
-  @AfterAll
-  static void stopRedis() {
-    redis.stop();
-  }
+class AiVectorStoreRedisResourceWithVectorPrecisionTest extends AbstractAiVectorStoreRedisResourceTest {
 
   @ParameterizedTest
   @MethodSource("params_that_must_test_different_vector_types")
@@ -163,12 +117,5 @@ class AiVectorStoreRedisResourceWithVectorPrecisionTest {
       Arguments.of(3, FLOAT16, vector1, vector2, 0.5f),
       Arguments.of(4, BFLOAT16, vector1, vector2, 0.5f)
     );
-  }
-
-  private void injectConfiguration(AiVectorStoreRedisResource resource, AiVectorStoreRedisConfiguration config)
-    throws Exception {
-    Field field = resource.getClass().getSuperclass().getSuperclass().getDeclaredField("configuration");
-    field.setAccessible(true);
-    field.set(resource, config);
   }
 }
