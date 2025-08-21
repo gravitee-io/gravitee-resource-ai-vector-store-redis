@@ -15,32 +15,6 @@
  */
 package io.gravitee.resource.ai.vector.store.local;
 
-import io.gravitee.resource.ai.vector.store.api.AiVectorStoreProperties;
-import io.gravitee.resource.ai.vector.store.api.VectorEntity;
-import io.gravitee.resource.ai.vector.store.api.VectorResult;
-import io.gravitee.resource.ai.vector.store.redis.AiVectorStoreRedisResource;
-import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRedisConfiguration;
-import io.gravitee.resource.ai.vector.store.redis.configuration.RedisConfiguration;
-import io.gravitee.resource.ai.vector.store.redis.configuration.RedisVectorStoreConfiguration;
-import io.gravitee.resource.ai.vector.store.redis.configuration.VectorType;
-import io.reactivex.rxjava3.core.Flowable;
-import io.reactivex.rxjava3.subscribers.TestSubscriber;
-import io.vertx.rxjava3.core.Vertx;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.context.ApplicationContext;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.utility.DockerImageName;
-
-import java.lang.reflect.Field;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
-
 import static io.gravitee.resource.ai.vector.store.api.IndexType.FLAT;
 import static io.gravitee.resource.ai.vector.store.api.IndexType.HNSW;
 import static io.gravitee.resource.ai.vector.store.api.Similarity.*;
@@ -50,59 +24,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class AiVectorStoreRedisResourceNoExpiryTest {
+import io.gravitee.resource.ai.vector.store.api.AiVectorStoreProperties;
+import io.gravitee.resource.ai.vector.store.api.VectorEntity;
+import io.gravitee.resource.ai.vector.store.api.VectorResult;
+import io.gravitee.resource.ai.vector.store.redis.AiVectorStoreRedisResource;
+import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRedisConfiguration;
+import io.gravitee.resource.ai.vector.store.redis.configuration.RedisConfiguration;
+import io.gravitee.resource.ai.vector.store.redis.configuration.RedisVectorStoreConfiguration;
+import io.reactivex.rxjava3.subscribers.TestSubscriber;
+import io.vertx.rxjava3.core.Vertx;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.springframework.context.ApplicationContext;
 
-  static final GenericContainer<?> redis = new GenericContainer<>(DockerImageName.parse("redis/redis-stack:7.4.0-v5"))
-    .withExposedPorts(6379);
-
-  public static float[] vector1 = new float[] {
-    0.66953415f,
-    0.18902819f,
-    0.11021819f,
-    0.07593438f,
-    -0.04711385f,
-    0.03122021f,
-    -0.19437398f,
-    -0.16093858f,
-    0.03285817f,
-    -0.17519756f,
-  };
-
-  public static float[] vector2 = new float[] {
-    0.6766241f,
-    0.1793094f,
-    0.07874545f,
-    0.03933726f,
-    -0.06496269f,
-    0.06297384f,
-    -0.19972953f,
-    -0.21079123f,
-    0.03588087f,
-    0.16885366f,
-  };
-
-  public static float[] vector3 = new float[] {
-    0.11073259f,
-    -0.04860843f,
-    -0.14480169f,
-    0.26077873f,
-    0.37519342f,
-    0.3149992f,
-    0.2587352f,
-    0.1779201f,
-    0.39984795f,
-    0.00279276f,
-  };
-
-  @BeforeAll
-  static void startRedis() {
-    redis.start();
-  }
-
-  @AfterAll
-  static void stopRedis() {
-    redis.stop();
-  }
+class AiVectorStoreRedisResourceNoExpiryTest extends AbstractAiVectorStoreRedisResourceTest {
 
   @ParameterizedTest
   @MethodSource("params_that_must_must_add_and_retrieve_vectors")
@@ -122,28 +62,28 @@ class AiVectorStoreRedisResourceNoExpiryTest {
 
       String id = UUID.randomUUID().toString();
       var entity = new VectorEntity(
-              id,
-              "The big brown fox jumps over the lazy dog",
-              v1,
-              metadata,
-              System.currentTimeMillis()
+        id,
+        "The big brown fox jumps over the lazy dog",
+        v1,
+        metadata,
+        System.currentTimeMillis()
       );
       var similarEntity = new VectorEntity(
-              id,
-              "The brown fox jumps over the lazy dog",
-              v2,
-              metadata,
-              System.currentTimeMillis()
+        id,
+        "The brown fox jumps over the lazy dog",
+        v2,
+        metadata,
+        System.currentTimeMillis()
       );
 
       TestSubscriber<VectorResult> subscriber = resource
-              .add(entity)
-              .andThen(resource.findRelevant(similarEntity))
-              .test()
-              .awaitDone(3, TimeUnit.SECONDS)
-              .assertComplete()
-              .assertNoErrors()
-              .assertValueCount(1);
+        .add(entity)
+        .andThen(resource.findRelevant(similarEntity))
+        .test()
+        .awaitDone(3, TimeUnit.SECONDS)
+        .assertComplete()
+        .assertNoErrors()
+        .assertValueCount(1);
 
       VectorResult result = subscriber.values().get(0);
 
@@ -153,13 +93,6 @@ class AiVectorStoreRedisResourceNoExpiryTest {
     } finally {
       resource.doStop();
     }
-  }
-
-  private void injectConfiguration(AiVectorStoreRedisResource resource, AiVectorStoreRedisConfiguration config)
-          throws Exception {
-    Field field = resource.getClass().getSuperclass().getSuperclass().getDeclaredField("configuration");
-    field.setAccessible(true);
-    field.set(resource, config);
   }
 
   static Stream<Arguments> params_that_must_must_add_and_retrieve_vectors() {
