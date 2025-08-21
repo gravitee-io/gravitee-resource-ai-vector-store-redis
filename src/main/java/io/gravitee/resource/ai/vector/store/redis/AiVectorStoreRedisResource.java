@@ -67,7 +67,7 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   private static final String EF_CONSTRUCTION_PROP_KEY = "EF_CONSTRUCTION";
   private static final String EF_RUNTIME_PROP_KEY = "EF_RUNTIME";
   private static final String EPSILON_PROP_KEY = "EPSILON";
-  private static final int HNSW_NB_PARAM = 8 * 2 ;
+  private static final int HNSW_NB_PARAM = 8 * 2;
   private static final int FLAT_NB_PARAMS = 10;
 
   private static final String VECTOR_ATTR = "vector";
