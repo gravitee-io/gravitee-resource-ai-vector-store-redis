@@ -56,6 +56,7 @@ class AiVectorStoreRedisResourceNoExpiryTest extends AbstractAiVectorStoreRedisR
     resource.setApplicationContext(appCtx);
 
     resource.doStart();
+    Thread.sleep(2000);
 
     try {
       var metadata = Map.<String, Object>of("retrieval_context_key", "ctx1", "category", "test");
