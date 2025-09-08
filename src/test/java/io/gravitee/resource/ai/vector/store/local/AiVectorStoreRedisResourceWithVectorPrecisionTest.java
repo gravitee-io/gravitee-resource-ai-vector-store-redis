@@ -52,7 +52,7 @@ class AiVectorStoreRedisResourceWithVectorPrecisionTest extends AbstractAiVector
       new RedisConfiguration(
         "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort(),
         null,
-        null,
+        "defaultpass",
         "test_vector" + index,
         "test_vector" + index,
         "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",

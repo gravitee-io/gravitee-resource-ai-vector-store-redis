@@ -212,35 +212,32 @@ public class AiVectorStoreRedisResource extends AiVectorStoreResource<AiVectorSt
   }
 
   private Redis buildClient() throws URISyntaxException {
+    String url = buildConnectionString(new URI(redisConfig.url()));
+
     var clientOptions = new RedisOptions();
-    clientOptions.setConnectionString(getUri().toASCIIString());
+    clientOptions.setConnectionString(url);
     clientOptions.setMaxPoolSize(redisConfig.maxPoolSize());
 
     return Redis.createClient(vertx.getDelegate(), clientOptions);
-  }
-
-  private URI getUri() throws URISyntaxException {
-    URI uri = new URI(redisConfig.url());
-    if (notEmpty(redisConfig.username()) && notEmpty(redisConfig.password())) {
-      return getUsernameAndPasswordUri(uri);
-    }
-    return uri;
   }
 
   private boolean notEmpty(String value) {
     return value != null && !value.isBlank();
   }
 
-  private URI getUsernameAndPasswordUri(URI u) throws URISyntaxException {
-    return new URI(
-      u.getScheme(),
-      redisConfig.username() + ":" + redisConfig.password(),
-      u.getHost(),
-      u.getPort(),
-      u.getPath(),
-      u.getQuery(),
-      u.getFragment()
-    );
+  private String buildConnectionString(URI u) throws URISyntaxException {
+    return new URI(u.getScheme(), getUserInfo(), u.getHost(), u.getPort(), u.getPath(), u.getQuery(), u.getFragment())
+      .toASCIIString();
+  }
+
+  private String getUserInfo() {
+    if (notEmpty(redisConfig.password())) {
+      if (notEmpty(redisConfig.username())) {
+        return redisConfig.username() + ":" + redisConfig.password();
+      }
+      return ":" + redisConfig.password();
+    }
+    return "";
   }
 
   private String getFinalPrefixName() {
