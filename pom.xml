@@ -57,6 +57,7 @@
     <testcontainers-redis.version>2.2.2</testcontainers-redis.version>
     <gravitee-resource-ai-vector-store-api.version>1.0.0</gravitee-resource-ai-vector-store-api.version>
     <vertx.version>4.5.1</vertx.version>
+    <publish-folder-path>graviteeio-apim/plugins/resources</publish-folder-path>
   </properties>
 
   <dependencies>
