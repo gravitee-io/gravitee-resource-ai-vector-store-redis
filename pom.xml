@@ -21,7 +21,7 @@
 
     <groupId>io.gravitee.resource.ai.vector.store</groupId>
     <artifactId>gravitee-resource-ai-vector-store-redis</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.0-alpha.1</version>
 
     <name>Gravitee.io - Resource - AI Vector Store - Redis</name>
     <description>This is the Redis vector store implementation</description>
