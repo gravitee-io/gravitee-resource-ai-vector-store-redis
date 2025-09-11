@@ -44,6 +44,20 @@ import org.springframework.context.ApplicationContext;
 
 class AiVectorStoreRedisResourceNoExpiryTest extends AbstractAiVectorStoreRedisResourceTest {
 
+  static final String REDIS_URL = "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort();
+  static final String RETRIEVAL_QUERY =
+    "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]";
+  static final RedisVectorStoreConfiguration VECTOR_STORE_CONFIG = new RedisVectorStoreConfiguration(
+    FLOAT32,
+    16,
+    200,
+    10,
+    0.01f,
+    5,
+    10
+  );
+  static final String SCORE_FIELD = "score";
+
   @ParameterizedTest
   @MethodSource("params_that_must_must_add_and_retrieve_vectors")
   void must_add_and_retrieve_vectors(AiVectorStoreRedisConfiguration config, float[] v1, float[] v2, float score)
@@ -102,12 +116,12 @@ class AiVectorStoreRedisResourceNoExpiryTest extends AbstractAiVectorStoreRedisR
         new AiVectorStoreRedisConfiguration(
           new AiVectorStoreProperties(vector1.length, 1, COSINE, 0.0f, HNSW, false, false, 2, TimeUnit.SECONDS),
           new RedisConfiguration(
-            "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort(),
+            REDIS_URL,
             null,
             null,
             "test_4",
             "test_4",
-            "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
+            RETRIEVAL_QUERY,
             "score",
             6,
             new RedisVectorStoreConfiguration(FLOAT32, 16, 15, 10, 0.01f, 5, 10)
@@ -120,17 +134,7 @@ class AiVectorStoreRedisResourceNoExpiryTest extends AbstractAiVectorStoreRedisR
       Arguments.of(
         new AiVectorStoreRedisConfiguration(
           new AiVectorStoreProperties(vector1.length, 1, EUCLIDEAN, 0.0f, FLAT, false, false, 2, TimeUnit.SECONDS),
-          new RedisConfiguration(
-            "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort(),
-            null,
-            null,
-            "test_5",
-            "test_5",
-            "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
-            "score",
-            6,
-            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
-          )
+          new RedisConfiguration(REDIS_URL, null, null, "test_5", "test_5", RETRIEVAL_QUERY, "score", 6, VECTOR_STORE_CONFIG)
         ),
         vector1,
         vector2,
@@ -139,17 +143,7 @@ class AiVectorStoreRedisResourceNoExpiryTest extends AbstractAiVectorStoreRedisR
       Arguments.of(
         new AiVectorStoreRedisConfiguration(
           new AiVectorStoreProperties(vector1.length, 1, DOT, 0.0f, HNSW, false, false, 1, TimeUnit.SECONDS),
-          new RedisConfiguration(
-            "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort(),
-            null,
-            null,
-            "test_6",
-            "test_6",
-            "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
-            "score",
-            6,
-            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
-          )
+          new RedisConfiguration(REDIS_URL, null, null, "test_6", "test_6", RETRIEVAL_QUERY, "score", 6, VECTOR_STORE_CONFIG)
         ),
         vector1,
         vector2,
@@ -158,17 +152,7 @@ class AiVectorStoreRedisResourceNoExpiryTest extends AbstractAiVectorStoreRedisR
       Arguments.of(
         new AiVectorStoreRedisConfiguration(
           new AiVectorStoreProperties(vector1.length, 1, COSINE, 0.0f, HNSW, false, false, 2, TimeUnit.SECONDS),
-          new RedisConfiguration(
-            "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort(),
-            null,
-            null,
-            "test_1",
-            "test_1",
-            "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
-            "score",
-            6,
-            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
-          )
+          new RedisConfiguration(REDIS_URL, null, null, "test_1", "test_1", RETRIEVAL_QUERY, "score", 6, VECTOR_STORE_CONFIG)
         ),
         vector1,
         vector3,
@@ -177,17 +161,7 @@ class AiVectorStoreRedisResourceNoExpiryTest extends AbstractAiVectorStoreRedisR
       Arguments.of(
         new AiVectorStoreRedisConfiguration(
           new AiVectorStoreProperties(vector1.length, 1, EUCLIDEAN, 0.0f, FLAT, false, false, 2, TimeUnit.SECONDS),
-          new RedisConfiguration(
-            "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort(),
-            null,
-            null,
-            "test_2",
-            "test_2",
-            "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
-            "score",
-            6,
-            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
-          )
+          new RedisConfiguration(REDIS_URL, null, null, "test_2", "test_2", RETRIEVAL_QUERY, "score", 6, VECTOR_STORE_CONFIG)
         ),
         vector1,
         vector3,
@@ -196,17 +170,7 @@ class AiVectorStoreRedisResourceNoExpiryTest extends AbstractAiVectorStoreRedisR
       Arguments.of(
         new AiVectorStoreRedisConfiguration(
           new AiVectorStoreProperties(vector1.length, 1, DOT, 0.0f, HNSW, false, false, 1, TimeUnit.SECONDS),
-          new RedisConfiguration(
-            "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort(),
-            null,
-            null,
-            "test_3",
-            "test_3",
-            "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
-            "score",
-            6,
-            new RedisVectorStoreConfiguration(FLOAT32, 16, 200, 10, 0.01f, 5, 10)
-          )
+          new RedisConfiguration(REDIS_URL, null, null, "test_3", "test_3", RETRIEVAL_QUERY, "score", 6, VECTOR_STORE_CONFIG)
         ),
         vector1,
         vector3,
