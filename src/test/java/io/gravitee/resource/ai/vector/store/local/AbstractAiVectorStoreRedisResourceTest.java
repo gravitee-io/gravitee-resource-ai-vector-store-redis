@@ -15,8 +15,11 @@
  */
 package io.gravitee.resource.ai.vector.store.local;
 
+import static io.gravitee.resource.ai.vector.store.redis.configuration.VectorType.FLOAT32;
+
 import io.gravitee.resource.ai.vector.store.redis.AiVectorStoreRedisResource;
 import io.gravitee.resource.ai.vector.store.redis.configuration.AiVectorStoreRedisConfiguration;
+import io.gravitee.resource.ai.vector.store.redis.configuration.RedisVectorStoreConfiguration;
 import java.lang.reflect.Field;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;

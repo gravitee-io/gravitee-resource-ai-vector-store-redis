@@ -43,6 +43,20 @@ import org.springframework.context.ApplicationContext;
 
 class AiVectorStoreRedisResourceWithVectorPrecisionTest extends AbstractAiVectorStoreRedisResourceTest {
 
+  static final String REDIS_URL = "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort();
+  static final String RETRIEVAL_QUERY =
+    "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]";
+  static final RedisVectorStoreConfiguration VECTOR_STORE_CONFIG = new RedisVectorStoreConfiguration(
+    FLOAT32,
+    16,
+    200,
+    10,
+    0.01f,
+    5,
+    10
+  );
+  static final String SCORE_FIELD = "score";
+
   @ParameterizedTest
   @MethodSource("params_that_must_test_different_vector_types")
   void must_test_different_vector_types(int index, VectorType vectorType, float[] v1, float[] v2, float score)
@@ -50,15 +64,15 @@ class AiVectorStoreRedisResourceWithVectorPrecisionTest extends AbstractAiVector
     var config = new AiVectorStoreRedisConfiguration(
       new AiVectorStoreProperties(vector1.length, 1, COSINE, 0.0f, HNSW, false, true, 2, TimeUnit.SECONDS),
       new RedisConfiguration(
-        "redis://" + redis.getHost() + ":" + redis.getFirstMappedPort(),
+        REDIS_URL,
         null,
         null,
         "test_vector" + index,
         "test_vector" + index,
-        "@retrieval_context_key:{\n\t$retrieval_context_key\n}=>[\n\tKNN $max_results @vector $vector AS score\n]",
+        RETRIEVAL_QUERY,
         "score",
         6,
-        new RedisVectorStoreConfiguration(vectorType, 16, 200, 10, 0.01f, 5, 10)
+        VECTOR_STORE_CONFIG
       )
     );
 
